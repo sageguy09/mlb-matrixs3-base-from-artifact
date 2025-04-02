@@ -20,9 +20,20 @@ import json
 import traceback
 import neopixel
 
+# First check WiFi connection before importing other modules
+import network_check
+
 # Import our packages
 from packages.utils.logger import Logger
-from packages.utils.network import WiFiManager
+
+# Try to load the new ESP WiFi manager first
+try:
+    from packages.utils.esp_wifi import ESPWiFiManager as WiFiManager
+    using_esp_wifi = True
+except ImportError:
+    from packages.utils.network import WiFiManager
+    using_esp_wifi = False
+
 from packages.utils.time_utils import TimeUtil
 from packages.ui.display import Display
 from packages.ui.screens import (
@@ -66,6 +77,7 @@ except ImportError:
 # Set up logger
 log = Logger("MLB", debug=getattr(settings, "DEBUG", False))
 log.info("MLB Scoreboard starting up...")
+log.info(f"Using ESP32-SPI WiFi: {using_esp_wifi}")
 
 # Free up memory
 gc.collect()
@@ -104,9 +116,9 @@ class MLBScoreboard:
         self.schedule = None
         
         # Status indicator
-        self.status_pixel = neopixel.NeoPixel(
-            board.NEOPIXEL, 1, brightness=0.2, auto_write=True
-        )
+        # self.status_pixel = neopixel.NeoPixel(
+        #     board.NEOPIXEL, 1, brightness=0.2, auto_write=True
+        # )
         self.status_pixel[0] = (0, 0, 128)  # Blue during startup
     
     def initialize(self):
@@ -117,27 +129,38 @@ class MLBScoreboard:
             
             # Initialize display
             self.display = Display(
-                width=self.config.DISPLAY_WIDTH,
-                height=self.config.DISPLAY_HEIGHT,
-                chain_length=self.config.DISPLAY_CHAIN_LENGTH,
-                parallel=self.config.DISPLAY_PARALLEL
+                width=getattr(self.config, "DISPLAY_WIDTH", 64),
+                height=getattr(self.config, "DISPLAY_HEIGHT", 32),
+                chain_length=getattr(self.config, "DISPLAY_CHAIN_LENGTH", 1),
+                parallel=getattr(self.config, "DISPLAY_PARALLEL", 1)
             )
             
+            # First ensure WiFi connection using network_check
+            self.log.info("Ensuring WiFi connection...")
+            if not network_check.ensure_wifi_connection():
+                self.log.error("Failed to connect to WiFi")
+                return False
+            
             # Initialize network if WiFi credentials are provided
-            if hasattr(self.config, "WIFI_SSID") and self.config.WIFI_SSID:
+            from secrets import secrets
+            ssid = secrets.get('ssid')
+            password = secrets.get('password')
+            
+            if ssid and password:
                 self.log.info("Initializing network...")
                 self.network = WiFiManager(
-                    self.config.WIFI_SSID, 
-                    self.config.WIFI_PASSWORD,
+                    status_neopixel=self.status_pixel,
                     debug=self.debug
                 )
-                connected = self.network.connect()
+                
+                # Connect with the credentials from secrets
+                connected = self.network.connect(ssid, password)
                 if connected:
                     self.log.info("Network connected")
                     # Initialize time utilities
                     self.time_util = TimeUtil(
                         network=self.network,
-                        timezone=getattr(self.config, "TIMEZONE", "America/New_York"),
+                        timezone=secrets.get("timezone", "America/New_York"),
                         debug=self.debug
                     )
                     
@@ -173,6 +196,7 @@ class MLBScoreboard:
         except Exception as e:
             # Log failure
             self.log.error(f"Failed to initialize: {str(e)}")
+            self.log.error(traceback.format_exc())
             self.status_pixel[0] = (128, 0, 0)  # Red on error
             return False
     
@@ -245,13 +269,21 @@ class MLBScoreboard:
             log.info("Refreshing MLB data...")
             
             # Check if network is connected first
-            if not self.network or not self.network.is_connected():
-                self.log.error("Network not connected, can't refresh data")
-                # Try to reconnect if we have network object
-                if self.network:
-                    self.log.info("Attempting to reconnect...")
-                    if not self.network.connect():
-                        return False
+            if not self.network:
+                self.log.error("Network not initialized")
+                # Try to reconnect using network_check
+                if network_check.ensure_wifi_connection():
+                    # Reinitialize network
+                    from secrets import secrets
+                    ssid = secrets.get('ssid')
+                    password = secrets.get('password')
+                    self.network = WiFiManager(
+                        status_neopixel=self.status_pixel,
+                        debug=self.debug
+                    )
+                    self.network.connect(ssid, password)
+                else:
+                    return False
             
             # Check if MLB client exists
             if self.mlb_client is None:
@@ -266,13 +298,14 @@ class MLBScoreboard:
                 else:
                     return False
                 
-            # Check if time_util exists and is properly initialized
+            # Check if time_util exists
             if not hasattr(self, 'time_util') or self.time_util is None:
                 self.log.warning("TimeUtil not initialized, creating now")
                 if self.network:
+                    from secrets import secrets
                     self.time_util = TimeUtil(
                         network=self.network,
-                        timezone=getattr(self.config, "TIMEZONE", "America/New_York"),
+                        timezone=secrets.get("timezone", "America/New_York"),
                         debug=self.debug
                     )
                     self.time_util.sync_time()
@@ -371,13 +404,31 @@ class MLBScoreboard:
         """Main application loop."""
         # Try to initialize the system
         if not self.initialize():
-            # If initialization failed, just show the error screen
-            while True:
-                # Keep the error display active
-                time.sleep(1)
-                # Allow for reset by button
-                if supervisor.runtime.serial_bytes_available:
-                    supervisor.reload()
+            # If initialization failed, show the error screen
+            if hasattr(self, "display") and self.display and self.error_screen:
+                self.error_screen.update(
+                    title="Init Error",
+                    message="Failed to initialize system.\nCheck WiFi connection."
+                )
+                self.display.show(self.error_screen)
+            
+            # Try simple recovery - reconnect WiFi
+            self.log.info("Attempting recovery...")
+            if network_check.ensure_wifi_connection(max_attempts=5):
+                self.log.info("WiFi reconnected, restarting...")
+                supervisor.reload()
+            else:
+                # If reconnect failed, enter fail-safe mode
+                while True:
+                    # Blink status LED to indicate error
+                    self.status_pixel[0] = (128, 0, 0)  # Red
+                    time.sleep(0.5)
+                    self.status_pixel[0] = (0, 0, 0)  # Off
+                    time.sleep(0.5)
+                    
+                    # Check for reset command
+                    if supervisor.runtime.serial_bytes_available:
+                        supervisor.reload()
         
         # Main loop
         while True:
@@ -436,11 +487,36 @@ class MLBScoreboard:
                 # Wait a bit before continuing
                 time.sleep(5)
                 
-                # Try to recover
+                # Try to recover - check WiFi connection
+                if not network_check.ensure_wifi_connection():
+                    self.log.warning("WiFi connection lost, restarting...")
+                    time.sleep(1)
+                    supervisor.reload()
+                
+                # Continue with normal operation
                 self.status_pixel[0] = (0, 128, 0)  # Back to green
 
 
 # Initialize and run the application
 if __name__ == "__main__":
-    app = MLBScoreboard()
-    app.run()
+    # Run the network test first to ensure WiFi is working
+    if not network_check.ensure_wifi_connection():
+        log.error("Failed to establish WiFi connection - cannot proceed")
+        
+        # Set up status pixel for visual feedback
+        status_pixel = neopixel.NeoPixel(board.NEOPIXEL, 1, brightness=0.2)
+        
+        # Flash red error indicator
+        while True:
+            status_pixel[0] = (50, 0, 0)  # Red
+            time.sleep(0.5)
+            status_pixel[0] = (0, 0, 0)  # Off
+            time.sleep(0.5)
+            
+            # Check if user wants to retry
+            if supervisor.runtime.serial_bytes_available:
+                supervisor.reload()
+    else:
+        # WiFi is connected, proceed with application
+        app = MLBScoreboard()
+        app.run()
