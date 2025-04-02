@@ -1,0 +1,31 @@
+# CircuitPython specific
+.Trash-*
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+*.mpy
+.idea
+.vscode
+*.code-workspace
+
+# Secrets file (contains credentials)
+secrets.py
+
+# Log files
+/logs/
+*.log
+
+# Backup files
+*.bak
+*~
+.DS_Store
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.venv/
+venv/
+ENV/

@@ -1,0 +1,44 @@
+# Project configuration
+# MLB Scoreboard Configuration
+# Place this file in the root directory of your CircuitPython device
+
+# ===== WIFI SETTINGS =====
+# Fill in your WiFi credentials
+WIFI_SSID = "Your_WiFi_Name"
+WIFI_PASSWORD = "Your_WiFi_Password"
+TIMEZONE = "America/New_York"  # Standard timezone format
+
+# ===== DISPLAY SETTINGS =====
+DISPLAY_WIDTH = 64      # Matrix width in pixels
+DISPLAY_HEIGHT = 32     # Matrix height in pixels
+DISPLAY_BIT_DEPTH = 6   # Color bit depth (6=64 colors per channel)
+DISPLAY_ROTATION = 0    # 0=0°, 1=90°, 2=180°, 3=270°
+BRIGHTNESS = 0.5        # Display brightness (0.0-1.0)
+
+# ===== MLB SETTINGS =====
+FAVORITE_TEAM = "NYY"   # Team abbreviation (see teams list below)
+ROTATION_SPEED = 15.0   # Seconds per screen 
+DATA_REFRESH_INTERVAL = 60  # Seconds between API refreshes
+
+# For live games, choose update frequency (in seconds)
+LIVE_UPDATE_INTERVAL = 15    # How often to update live game data
+
+# ===== APP SETTINGS =====
+DEBUG = false           # Enable debug logging
+ENABLE_ANIMATIONS = true  # Enable screen transitions and animations
+CACHE_ENABLED = true    # Cache API responses to reduce network requests
+
+# ===== SCREENS TO DISPLAY =====
+# Set to true/false to enable/disable screens
+SHOW_SPLASH_SCREEN = true
+SHOW_GAME_SCREEN = true
+SHOW_STANDINGS_SCREEN = true
+SHOW_SCHEDULE_SCREEN = true
+
+# ===== TEAM ABBREVIATIONS =====
+# AL East: BAL, BOS, NYY, TB, TOR
+# AL Central: CWS, CLE, DET, KC, MIN
+# AL West: HOU, LAA, OAK, SEA, TEX
+# NL East: ATL, MIA, NYM, PHI, WSH
+# NL Central: CHC, CIN, MIL, PIT, STL
+# NL West: ARI, COL, LAD, SD, SF

@@ -1,0 +1,90 @@
+# MLB Scoreboard Project Structure (Updated)
+
+```
+esp32-mlb-scoreboard/
+│
+├── code.py                    # Main application entry point
+├── boot.py                    # Initial boot configuration
+├── debug.py                   # Debugging utilities
+├── home_menu.py               # Interface navigation and menu system
+├── settings.toml              # Project configuration
+├── secrets.py                 # WiFi credentials (gitignored)
+├── install_req.py             # REPL-triggered library installer
+├── requirements.txt           # Required CircuitPython libraries
+├── README.md                  # Project documentation
+├── .gitignore                 # Version control ignore file
+│
+├── lib/                       # External CircuitPython libraries
+│   └── README.txt             # Instructions for library installation
+│
+├── packages/                  # Custom Python modules
+│   ├── network/               # Networking utilities
+│   │   ├── __init__.py        # Package exports
+│   │   └── wifi.py            # WiFi connection management
+│   ├── ui/                    # User interface helpers
+│   │   ├── __init__.py        # Package exports
+│   │   ├── display.py         # Display initialization (formerly matrix.py)
+│   │   ├── screens.py         # Screen implementations
+│   │   ├── colors.py          # Team & UI colors
+│   │   ├── animations.py      # Animation effects
+│   │   └── layouts.py         # Screen layouts
+│   ├── mlb_api/               # MLB API modules
+│   │   ├── __init__.py        # Package exports
+│   │   ├── statsapi.py        # MLB Stats API client
+│   │   └── endpoints.py       # API endpoints
+│   ├── sensors/               # Sensor interface modules
+│   │   ├── __init__.py        # Package exports
+│   │   └── system.py          # System sensor utilities
+│   └── utils/                 # Utility modules
+│       ├── __init__.py        # Package exports
+│       ├── logger.py          # Logging utilities
+│       └── time_utils.py      # Time manipulation
+│
+├── assets/                    # Static project assets
+│   ├── fonts/                 # Font files for displays
+│   │   └── README.txt         # Font usage information
+│   └── images/                # Image resources
+│       └── team_logos/        # MLB team logos
+│
+├── host_scripts/              # Scripts that run on the host computer
+│   ├── backup_circuitpy.py    # Device backup script
+│   ├── circup_installer.py    # Library installer
+│   ├── install_libs.py        # Library installation helper
+│   ├── scan_dependencies.py   # Dependency scanner
+│   └── repl_installer.py      # REPL installation helper
+│
+├── tests/                     # Unit tests and debugging scripts
+│   └── test_network.py        # Network functionality tests
+│
+└── deploy.py                  # Deployment script for CircuitPython device
+```
+
+## Changes from Original MLB Scoreboard Structure
+
+### File Moves/Reorganization:
+- Renamed `packages/display/matrix.py` → `packages/ui/display.py`
+- Moved `packages/utils/network.py` → `packages/network/wifi.py`
+- Kept `packages/mlb_api/` directory structure
+- Added `packages/sensors/` directory for system monitoring
+- Retained `packages/utils/` for logger and time utilities
+
+### New Files:
+- `boot.py` - Initial configuration that runs at startup
+- `debug.py` - Debugging utilities
+- `home_menu.py` - Menu system for navigation
+- `lib/README.txt` - Library installation instructions
+- `assets/fonts/README.txt` - Font information
+- `packages/sensors/system.py` - System monitoring
+- `tests/test_network.py` - Network connectivity tests
+
+### Updates to Existing Files:
+- `code.py` - Updated to work with new package structure
+- `.gitignore` - Enhanced with project-specific patterns
+- `settings.toml` - Configure MLB scoreboard with new structure
+
+### Retained Files:
+- All MLB API functionality
+- Screen implementation logic
+- Team color definitions
+- All animation and layout code
+- All deployment and host scripts
