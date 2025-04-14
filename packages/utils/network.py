@@ -1,182 +1,153 @@
-"""
-Network utilities for MLB Scoreboard
-===================================
-Handles WiFi connectivity and HTTP requests.
-"""
+# network/wifi_manager.py - WiFi and network management for Matrix Portal S3
 
-import gc
 import time
-import ssl
-import json
-import traceback
-import socketpool
 import wifi
+import socketpool
 import adafruit_requests
-from packages.utils.logger import Logger
+import ssl
+import gc
 
 class WiFiManager:
-    """WiFi connection manager."""
+    """
+    Manages WiFi connectivity and network requests for Matrix Portal S3
+    """
     
-    def __init__(self, ssid=None, password=None, debug=False):
-        """Initialize WiFi manager.
+    def __init__(self, status_led=None, debug=False):
+        """
+        Initialize the WiFi manager.
+        
+        Args:
+            status_led: Optional DigitalInOut object for status indication
+            debug: Enable debug output
+        """
+        self.status_led = status_led
+        self.debug = debug
+        self.connected = False
+        self.requests_session = None
+        self.pool = None
+    
+    def log(self, message):
+        """Print debug messages if debug mode enabled"""
+        if self.debug:
+            print(f"[WiFiManager] {message}")
+    
+    def connect(self, ssid, password, max_attempts=3):
+        """
+        Connect to WiFi network.
         
         Args:
             ssid: WiFi network name
             password: WiFi password
-            debug: Enable debug logging
-        """
-        self.ssid = ssid
-        self.password = password
-        self.log = Logger("WiFi", debug=debug)
-        self.debug = debug
-        self.is_connected = False
-        self.wifi = wifi.radio
-    
-    def connect(self, max_attempts=3):
-        """Connect to WiFi network.
+            max_attempts: Maximum connection attempts
         
-        Args:
-            max_attempts: Maximum number of connection attempts
-            
         Returns:
-            True if connection successful, False otherwise
+            bool: Connection success
         """
-        if self.is_connected:
+        # If already connected, don't try again
+        if self.connected:
+            self.log("Already connected")
             return True
-            
-        if not self.ssid or not self.password:
-            self.log.error("WiFi credentials not provided")
-            return False
         
-        self.log.info(f"Connecting to {self.ssid}...")
+        self.log(f"Connecting to {ssid}...")
         
-        # Make multiple attempts
+        # Attempt to connect multiple times if needed
         for attempt in range(max_attempts):
             try:
-                self.wifi.connect(self.ssid, self.password)
-                # Check if connected
-                if self.wifi.connected:
-                    self.is_connected = True
-                    ip = self.wifi.ipv4_address
-                    self.log.info(f"Connected to {self.ssid} | IP: {ip}")
-                    return True
-            except Exception as e:
-                self.log.error(f"Connection attempt {attempt+1} failed: {e}")
-                if self.debug:
-                    self.log.error(traceback.format_exc())
+                # Flash status LED if available
+                if self.status_led:
+                    self.status_led.value = True
+                
+                # Attempt connection
+                wifi.radio.connect(ssid, password)
+                
+                # Create socket pool for requests
+                self.pool = socketpool.SocketPool(wifi.radio)
+                self.requests_session = adafruit_requests.Session(self.pool)
+                
+                # Connection successful
+                self.connected = True
+                self.log(f"Connected! IP: {wifi.radio.ipv4_address}")
+                
+                # Turn off status LED
+                if self.status_led:
+                    self.status_led.value = False
+                
+                return True
+            
+            except (ConnectionError, ValueError, RuntimeError) as e:
+                self.log(f"Connection attempt {attempt+1}/{max_attempts} failed: {e}")
+                
+                # Flash status LED to indicate failure
+                if self.status_led:
+                    for _ in range(3):
+                        self.status_led.value = not self.status_led.value
+                        time.sleep(0.1)
+                    self.status_led.value = False
+                
+                # Wait before retry
                 time.sleep(1)
         
-        self.log.error(f"Failed to connect to {self.ssid} after {max_attempts} attempts")
+        # All attempts failed
+        self.log(f"Failed to connect to {ssid} after {max_attempts} attempts")
         return False
     
-    def disconnect(self):
-        """Disconnect from WiFi network."""
-        if self.is_connected:
-            self.wifi.enabled = False
-            self.is_connected = False
-            self.log.info(f"Disconnected from {self.ssid}")
-    
-    def is_connected(self):
-        """Check if WiFi is currently connected.
-        
-        Returns:
-            bool: True if connected, False otherwise
+    def fetch_json(self, url, json_path=None, timeout=10):
         """
-        try:
-            if not hasattr(self, 'wifi') or self.wifi is None:
-                return False
-            # Test connection by checking IP
-            return self.wifi.is_connected
-        except Exception as e:
-            self.log.error(f"Error checking connection: {e}")
-            return False
-
-
-class Network:
-    """Network manager for HTTP requests."""
-    
-    def __init__(self, status_neopixel=None, debug=False):
-        """Initialize network manager.
-        
-        Args:
-            status_neopixel: NeoPixel for status indication
-            debug: Enable debug logging
-        """
-        self.log = Logger("Network", debug=debug)
-        self.debug = debug
-        self.status_pixel = status_neopixel
-        self.requests_session = None
-        self.pool = None
-    
-    def _initialize_session(self):
-        """Initialize requests session."""
-        try:
-            self.pool = socketpool.SocketPool(wifi.radio)
-            self.requests_session = adafruit_requests.Session(self.pool, ssl.create_default_context())
-            return True
-        except Exception as e:
-            self.log.error(f"Failed to initialize session: {e}")
-            if self.debug:
-                self.log.error(traceback.format_exc())
-            return False
-    
-    def fetch(self, url, headers=None, timeout=30):
-        """Fetch data from a URL.
+        Fetch JSON data from a URL.
         
         Args:
             url: URL to fetch
-            headers: HTTP headers
+            json_path: Optional list of keys to navigate JSON structure
             timeout: Request timeout in seconds
-            
+        
         Returns:
-            Response text or None on error
+            Data at the specified path or full JSON response
         """
-        # Initialize session if not already done
-        if not self.requests_session:
-            if not self._initialize_session():
-                return None
+        if not self.connected or not self.requests_session:
+            self.log("Not connected - cannot fetch data")
+            return None
         
-        # Set default headers
-        if headers is None:
-            headers = {
-                "User-Agent": "ESP32-MLB-Scoreboard/1.0",
-                "Accept": "application/json"
-            }
-        
-        # Set status pixel to cyan during request if available
-        if self.status_pixel:
-            self.status_pixel[0] = (0, 128, 128)
+        # Indicate activity with status LED
+        if self.status_led:
+            self.status_led.value = True
         
         try:
-            self.log.debug(f"GET {url}")
-            response = self.requests_session.get(url, headers=headers, timeout=timeout)
+            # Perform the HTTP request
+            self.log(f"Fetching data from {url}")
+            response = self.requests_session.get(url, timeout=timeout)
             
-            if response.status_code == 200:
-                # Set status pixel back to green on success if available
-                if self.status_pixel:
-                    self.status_pixel[0] = (0, 128, 0)
-                    
-                # Return the response text
-                return response.text
-            else:
-                self.log.error(f"Request failed with status code {response.status_code}")
-                
-                # Set status pixel to orange on error if available
-                if self.status_pixel:
-                    self.status_pixel[0] = (128, 64, 0)
-                    
-                return None
-                
-        except Exception as e:
-            self.log.error(f"Request failed: {e}")
-            if self.debug:
-                self.log.error(traceback.format_exc())
-                
-            # Set status pixel to red on exception if available
-            if self.status_pixel:
-                self.status_pixel[0] = (128, 0, 0)
-                
-            return None
-        finally:
-            # Clean up memory
+            # Parse the JSON response
+            json_data = response.json()
+            response.close()
+            
+            # Run garbage collection to free memory
             gc.collect()
+            
+            # Navigate to the specified path in the JSON if provided
+            if json_path:
+                for key in json_path:
+                    json_data = json_data[key]
+            
+            self.log("Data fetched successfully")
+            return json_data
+        
+        except (RuntimeError, ValueError, KeyError) as e:
+            self.log(f"Error fetching data: {e}")
+            return None
+        
+        finally:
+            # Always turn off the status LED when done
+            if self.status_led:
+                self.status_led.value = False
+    
+    def is_connected(self):
+        """Check if currently connected to WiFi"""
+        if not self.connected:
+            return False
+        
+        try:
+            # Test connection by checking IP
+            return wifi.radio.ipv4_address is not None
+        except (RuntimeError, OSError):
+            self.connected = False
+            return False

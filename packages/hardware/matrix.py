@@ -1,63 +1,95 @@
-"""Matrix hardware interface module."""
+# hardware/matrix_s3.py - Hardware configuration for Matrix Portal S3
 
 import board
-import displayio
-from adafruit_matrixportal.matrix import Matrix as AdafruitMatrix
+import digitalio
+import busio
+import time
+from adafruit_matrixportal.matrix import Matrix
 
 class Matrix:
-    """Class to interface with the RGB LED matrix hardware."""
+    """
+    Hardware abstraction for the Adafruit Matrix Portal S3
+    connected to a 32x64 RGB LED matrix panel.
+    """
     
-    def __init__(self, width=64, height=32, chain_length=1, parallel=1):
-        """Initialize the Matrix object.
+    def __init__(self, width=64, height=32, bit_depth=6):
+        """
+        Initialize the Matrix Portal S3 hardware.
         
         Args:
-            width: Width of the matrix in pixels
-            height: Height of the matrix in pixels
-            chain_length: Number of matrices chained together
-            parallel: Number of parallel chains
+            width (int): Width of the matrix in pixels
+            height (int): Height of the matrix in pixels
+            bit_depth (int): Color bit depth (higher = more colors, more memory)
         """
         self.width = width
         self.height = height
-        self.chain_length = chain_length
-        self.parallel = parallel
-        self.matrix = None
-        self.display = None
-    
-    def setup(self):
-        """Set up the matrix hardware."""
-        # Create the matrix object - removing 'tile' parameter which is causing the error
-        self.matrix = AdafruitMatrix(
-            width=self.width, 
-            height=self.height,
-            bit_depth=6,
-            serpentine=True
+        self.bit_depth = bit_depth
+        
+        # Initialize the matrix with specific S3 configuration
+        self.matrix = Matrix(
+            width=width,
+            height=height,
+            bit_depth=bit_depth,
+            tile_rows=1,
         )
         
-        # Get the framebuffer display
+        # Get the display object
         self.display = self.matrix.display
         
-        # Set basic display parameters
-        self.display.auto_refresh = True
-        
-        return self
+        # Set up status LED
+        self.status_led = digitalio.DigitalInOut(board.NEOPIXEL)
+        self.status_led.direction = digitalio.Direction.OUTPUT
+        self.status_led.value = False
     
-    def brightness(self, value):
-        """Set the brightness of the matrix.
-        
-        Args:
-            value: Brightness value (0-100)
-        """
-        if self.display:
-            # Convert 0-100 to 0.0-1.0
-            brightness_float = max(0.0, min(1.0, value / 100.0))
-            self.display.brightness = brightness_float
+    def set_brightness(self, brightness):
+        """Set the brightness of the display (0-1.0)"""
+        if 0 <= brightness <= 1.0:
+            self.display.brightness = brightness
     
-    def create_canvas(self):
-        """Create and return a canvas for drawing."""
-        if self.display:
-            # Create a root displayio group to use as our "canvas"
-            canvas = displayio.Group()
-            # Use root_group instead of show() which has been removed
-            self.display.root_group = canvas
-            return canvas
-        raise RuntimeError("Matrix not initialized. Call setup() first.")
+    def status_flash(self, count=1, on_time=0.1, off_time=0.1):
+        """Flash the status LED a specified number of times"""
+        for _ in range(count):
+            self.status_led.value = True
+            time.sleep(on_time)
+            self.status_led.value = False
+            time.sleep(off_time)
+    
+    def get_display_group(self):
+        """Create and return a display group for rendering"""
+        import displayio
+        group = displayio.Group()
+        self.display.root_group = group
+        return group
+    
+    def show_test_pattern(self):
+        """Show a simple test pattern to verify the matrix is working"""
+        import displayio
+        
+        # Create a test bitmap with three color blocks
+        bitmap = displayio.Bitmap(self.width, self.height, 3)
+        palette = displayio.Palette(3)
+        palette[0] = 0xFF0000  # Red
+        palette[1] = 0x00FF00  # Green
+        palette[2] = 0x0000FF  # Blue
+        
+        # Fill the bitmap with color blocks
+        for x in range(self.width):
+            for y in range(self.height):
+                if x < self.width // 3:
+                    bitmap[x, y] = 0
+                elif x < 2 * (self.width // 3):
+                    bitmap[x, y] = 1
+                else:
+                    bitmap[x, y] = 2
+        
+        # Create a TileGrid using the bitmap and palette
+        tile_grid = displayio.TileGrid(bitmap, pixel_shader=palette)
+        
+        # Create a Group and add the TileGrid
+        group = displayio.Group()
+        group.append(tile_grid)
+        
+        # Show the Group
+        self.display.root_group = group
+        
+        return group
