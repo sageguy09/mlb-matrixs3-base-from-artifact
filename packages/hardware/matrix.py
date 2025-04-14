@@ -30,7 +30,6 @@ class Matrix:
             width=width,
             height=height,
             bit_depth=bit_depth,
-            tile_rows=1,
         )
         
         # Get the display object

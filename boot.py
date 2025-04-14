@@ -42,7 +42,7 @@ else:
     else:
         # Disable USB drive write access to protect against corruption
         # when board loses power without clean shutdown
-        storage.remount("/", readonly=True)
+        storage.remount("/", readonly=false)
         print("USB drive access disabled for stability")
     
     # Set CPU frequency - higher for performance, lower for power savings
