@@ -1,84 +1,76 @@
 # boot.py - Initial setup code for Matrix Portal S3
-# This file runs before main.py on startup
 
 import board
 import digitalio
 import storage
 import supervisor
+import os
 import time
-import microcontroller
 
-# Constants
-DEBUG_MODE = True  # Set to False for production
-ENABLE_USB_DRIVE = True  # Set to False to disable USB drive access
+# === CONFIGURATION ===
+DEBUG_MODE = True
+ENABLE_USB_DRIVE = True
 
-# Disable auto-reload to prevent unintended code execution during file operations
+# Disable auto-reload to prevent reloading during file setup
 supervisor.runtime.autoreload = False
 
-# List of essential directories
-REQUIRED_DIRS = ["lib", "sd", "fonts", "images", "sounds"]
-
-# Create each directory if it doesn't exist
-for directory in REQUIRED_DIRS:
-    try:
-        os.makedirs(directory, exist_ok=True)
-    except OSError:
-        pass  # Directory already exists or cannot be created
-
-# Ensure the settings.toml file exists with default content
-if not os.path.exists("settings.toml"):
-    try:
-        with open("settings.toml", "w") as f:
-            f.write("CIRCUITPY_USB_WRITE_PROTECT=false\n")
-    except OSError:
-        pass  # File cannot be created
-
-# Setup status LED to indicate boot process
+# Status LED setup (NeoPixel onboard)
 status_led = digitalio.DigitalInOut(board.NEOPIXEL)
 status_led.direction = digitalio.Direction.OUTPUT
 
 def blink_led(count, on_time=0.1, off_time=0.1):
-    """Blink the onboard NeoPixel to indicate status"""
     for _ in range(count):
         status_led.value = True
         time.sleep(on_time)
         status_led.value = False
         time.sleep(off_time)
 
-# Indicate boot start
+# Blink twice to show boot started
 blink_led(2)
 
-# Check for safe mode
+# CRITICAL FIX: Always check safe mode before operations
 if supervisor.runtime.safe_mode:
-    # Rapid blink to indicate safe mode
-    blink_led(10, 0.05, 0.05)
-    
-    # Skip the rest of boot process in safe mode
-    print("Boot in safe mode - skipping further initialization")
+    print("⚠️ Safe mode detected, skipping remount and file setup.")
+    blink_led(10, 0.05, 0.05)  # Fast blink to indicate safe mode
 else:
-    # Configure USB drive access
-    if ENABLE_USB_DRIVE:
-        # USB drive is enabled by default
-        print("USB drive access enabled")
-    else:
-        # Disable USB drive write access to protect against corruption
-        # when board loses power without clean shutdown
-        storage.remount("/", readonly=false)
-        print("USB drive access disabled for stability")
+    # === Remount the filesystem as writable - CRITICAL for image saving
+    try:
+        storage.remount("/", readonly=False)
+        print("✅ Filesystem remounted writable")
+        # Blink once to confirm remount success
+        blink_led(1, 0.2, 0.1)
+    except Exception as e:
+        print(f"⚠️ Could not remount filesystem: {e}")
+        # Blink error pattern
+        blink_led(3, 0.1, 0.3)
+
+    # === Ensure essential directories exist (including /images for logo storage)
+    required_dirs = ["lib", "sd", "fonts", "images", "data", "sounds"]
+    for d in required_dirs:
+        try:
+            os.makedirs(d, exist_ok=True)
+            print(f"✓ Directory /{d} ready")
+        except Exception as e:
+            print(f"⚠️ Couldn't create /{d}: {e}")
     
-    # Set CPU frequency - higher for performance, lower for power savings
-    # Options: 125000000 (125MHz), 62500000 (62.5MHz), 31250000 (31.25MHz)
-    if DEBUG_MODE:
-        # Full speed for debugging
-        pass  # Default is already full speed
+    # Verify images directory specifically - critical for our application
+    if os.path.exists("/images"):
+        print("✅ Confirmed /images directory exists")
     else:
-        # Lower speed for power savings in production
-        pass  # Uncomment the next line to reduce CPU speed
-        # microcontroller.cpu.frequency = 62500000
+        print("❌ Critical error: /images directory missing")
 
-    # Configure other hardware as needed before main.py runs
-    # ...
+    # === Ensure settings.toml exists
+    if not os.path.exists("settings.toml"):
+        try:
+            with open("settings.toml", "w") as f:
+                f.write("CIRCUITPY_WIFI_SSID=\"YourSSID\"\n")
+                f.write("CIRCUITPY_WIFI_PASSWORD=\"YourPassword\"\n")
+                f.write("CIRCUITPY_USB_WRITE_PROTECT=false\n")
+            print("✅ settings.toml created")
+        except Exception as e:
+            print(f"⚠️ Couldn't create settings.toml: {e}")
 
-    # Indicate boot complete
+    # Final blink to show success
     blink_led(1, 0.5, 0)
-    print("Boot complete, transferring control to main.py")
+    print("✅ Boot complete, ready for code.py")
+

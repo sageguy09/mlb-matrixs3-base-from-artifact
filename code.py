@@ -3,13 +3,13 @@ import displayio
 import framebufferio
 import rgbmatrix
 from adafruit_display_text import label
-import terminalio  # Use built-in font as fallback
+import terminalio
 import time
 import os
 import ssl
 import socketpool
 import wifi
-from get_team_logos import get_logo_tilegrid, LOGO_READY
+import gc
 
 # Release any existing displays
 displayio.release_displays()
@@ -19,7 +19,7 @@ BIT_DEPTH = 4  # Adjust for color depth (1-6)
 WIDTH = 64
 HEIGHT = 32
 
-# Initialize the RGB matrix
+# Initialize the RGB matrix with standard hub75 pinout for MatrixPortal S3
 matrix = rgbmatrix.RGBMatrix(
     width=WIDTH,
     height=HEIGHT,
@@ -46,74 +46,129 @@ matrix = rgbmatrix.RGBMatrix(
 # Create a display context
 display = framebufferio.FramebufferDisplay(matrix)
 
-# Create a loading message to display while we wait for logo and WiFi
+# Create a loading message to display while we wait
 loading_group = displayio.Group()
-loading_text = label.Label(terminalio.FONT, text="Loading...", color=0xFFFFFF, x=5, y=16)
-loading_group.append(loading_text)
+status_line = label.Label(terminalio.FONT, text="Initializing...", color=0xFFFFFF, x=2, y=16)
+loading_group.append(status_line)
 
-# Show loading screen first
+# Show loading screen immediately
 display.root_group = loading_group
 
-# Initialize WiFi connection
-print("Connecting to WiFi...")
-loading_text.text = "Connecting WiFi..."
+# Function to update status message
+def update_status(message):
+    print(message)
+    status_line.text = message
+    # Allow a brief moment for display to update
+    time.sleep(0.1)
 
+# Check that our logo file exists
+try:
+    if not os.path.exists("/ATL.bmp"):
+        update_status("Logo file missing!")
+        time.sleep(3)
+    else:
+        update_status("Logo file found")
+except Exception as e:
+    update_status(f"File check error: {str(e)}")
+
+# Initialize WiFi connection
+update_status("Connecting WiFi...")
+
+wifi_connected = False
 try:
     # Get WiFi details from settings.toml
     ssid = os.getenv("CIRCUITPY_WIFI_SSID")
     password = os.getenv("CIRCUITPY_WIFI_PASSWORD")
     
-    print(f"Connecting to {ssid}...")
-    wifi.radio.connect(ssid, password)
-    
-    # Create socket pool for network requests
-    pool = socketpool.SocketPool(wifi.radio)
-    
-    print("WiFi connected!")
-    print(f"IP address: {wifi.radio.ipv4_address}")
-    loading_text.text = "WiFi connected!"
-    time.sleep(1)  # Show success message briefly
+    if not ssid or ssid == "Your_WiFi_Name" or ssid == "YourSSID":
+        update_status("Set WiFi in settings.toml")
+        time.sleep(3)
+    else:
+        update_status(f"Connecting to {ssid}")
+        try:
+            # Set a timeout for connection attempts
+            wifi.radio.connect(ssid, password, timeout=10)
+            
+            # Create socket pool for network requests
+            pool = socketpool.SocketPool(wifi.radio)
+            
+            update_status(f"WiFi connected! IP: {wifi.radio.ipv4_address}")
+            wifi_connected = True
+            time.sleep(1)  # Show success briefly
+        except (ValueError, RuntimeError) as e:
+            update_status(f"WiFi connection error: {str(e)}")
+            time.sleep(2)
 except Exception as e:
-    print(f"Failed to connect to WiFi: {e}")
-    loading_text.text = "WiFi error!"
+    update_status(f"WiFi Failed: {str(e)}")
     time.sleep(2)  # Show error longer
 
 # Create the main display group
 main_group = displayio.Group()
 
 # Define teams for current game
-home_team = "ATL"  # We only support ATL in this version
-opponent_team = "NYM"  # Just for display, not loading a logo
+home_team = "ATL"  # Atlanta Braves
+opponent_team = "NYM"  # New York Mets (just for display)
 
-# Load Braves logo
-loading_text.text = "Loading logo..."
-braves_logo = get_logo_tilegrid(home_team)
-
-# Position logo
-braves_logo.x = 2
-braves_logo.y = 2
-main_group.append(braves_logo)
-
-# Try to load the custom font, fall back to built-in if it fails
+# Load the Braves logo directly from root directory
+update_status("Loading team logo...")
 try:
-    from adafruit_bitmap_font import bitmap_font
-    font = bitmap_font.load_font("/fonts/font.bdf")
-    print("Custom font loaded successfully")
+    # Load the bitmap directly from the file in root directory
+    bitmap = displayio.OnDiskBitmap("/ATL.bmp")
+    tile_grid = displayio.TileGrid(bitmap, pixel_shader=bitmap.pixel_shader)
+    
+    # Position logo in top left
+    tile_grid.x = 2
+    tile_grid.y = 2
+    main_group.append(tile_grid)
+    
+    # Try to load the custom font, fall back to built-in if it fails
+    try:
+        from adafruit_bitmap_font import bitmap_font
+        font = bitmap_font.load_font("/fonts/font.bdf")
+        print("Custom font loaded successfully")
+    except Exception as e:
+        print(f"Error loading font: {e}")
+        font = terminalio.FONT  # Use built-in font as fallback
+    
+    # Create scoreboard labels
+    score_label = label.Label(
+        font, 
+        text=f"{home_team} 5 - {opponent_team} 3", 
+        color=0x00FF00, 
+        x=2, 
+        y=20
+    )
+    next_game_label = label.Label(
+        font, 
+        text=f"Next: 7/15 @ {opponent_team}", 
+        color=0xFF0000, 
+        x=2, 
+        y=28
+    )
+    
+    # Add labels to the group
+    main_group.append(score_label)
+    main_group.append(next_game_label)
+    
+    # Show the main display group once everything is ready
+    display.root_group = main_group
+    
 except Exception as e:
-    print(f"Error loading font: {e}")
-    font = terminalio.FONT  # Use built-in font as fallback
+    update_status(f"Logo Error: {str(e)}")
+    # If we can't load the logo, at least display something
+    message_group = displayio.Group()
+    title = label.Label(terminalio.FONT, text="Atlanta Braves", color=0xFFFFFF, x=2, y=12)
+    status = label.Label(terminalio.FONT, text="Logo unavailable", color=0xFF0000, x=2, y=24)
+    message_group.append(title)
+    message_group.append(status)
+    display.root_group = message_group
+    time.sleep(2)
 
-# Create labels
-score_label = label.Label(font, text=f"{home_team} 5 - {opponent_team} 3", color=0x00FF00, x=2, y=20)
-next_game_label = label.Label(font, text=f"Next: 7/15 @ {opponent_team}", color=0xFF0000, x=2, y=28)
-
-# Add labels to the group
-main_group.append(score_label)
-main_group.append(next_game_label)
-
-# Show the main display group once everything is ready
-display.root_group = main_group
-
-# Keep the display on
+# Keep the display on and periodically refresh data
 while True:
+    # Just keep the display active
     time.sleep(1)
+    
+    # Optional: implement a memory check and garbage collection
+    # to prevent memory issues on long runs
+    gc.collect()
