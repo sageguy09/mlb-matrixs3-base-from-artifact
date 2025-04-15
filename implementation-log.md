@@ -1,85 +1,78 @@
-# MLB Scoreboard Implementation Log
+# MLB Scoreboard Implementation Log - Update
 
-## Project Analysis and Implementation
+## Improvements Made
 
-This document tracks the implementation of the Atlanta Braves MLB Scoreboard for a 64x32 RGB LED matrix using the Adafruit MatrixPortal S3. The project has been implemented based on the requirements from the prompt and analysis documents.
+Based on the detailed analysis, I've implemented several key improvements to the MLB Scoreboard project:
 
-## Changes Implemented
+### 1. Improved Layout Configuration
 
-### 1. Created Layout Configuration System
+- Updated the `/layouts/w64h32.json` configuration file with optimized positions
+- Added separate positioning for home team, versus text, and away team elements
+- Repositioned the base diamond for better visibility
+- Added support for logo size constraints (`max_width` and `max_height`)
 
-- Created the `/layouts` directory
-- Implemented the `w64h32.json` layout configuration file
-- Added configuration-based layout system in `code.py`
-- Added robust error handling for configuration loading
+### 2. Enhanced Base Diamond Visualization
 
-### 2. Updated Settings Configuration
+- Improved the pixel-based diamond with better positioning
+- Optimized the line-drawing algorithm between bases
+- Added boundary checking to prevent out-of-range pixel assignments
+- Used configurable colors for active/inactive bases from layout file
+- Better spacing between bases for improved visibility
 
-- Updated `settings.toml` to align with project requirements
-- Streamlined configuration focusing on:
-  - WiFi settings
-  - Display settings
-  - MLB team settings
-  - Debug options
+### 3. Added MLB Startup Logo
 
-### 3. Implemented Pixel-Based Base Diamond
+- Implemented a new startup sequence with centered MLB logo
+- Added version information display during startup
+- Implemented a fallback text display if the logo isn't available
+- Added a startup delay to allow users to see the logo (3 seconds)
 
-- Replaced text-based base indicators with a pixel-based diamond visualization
-- Implemented diamond drawing with configurable colors and positions
-- Created lines connecting the bases for better visibility
-- Made the base colors configurable via the layout file
+### 4. Modular Code Structure
 
-### 4. Refactored Display Elements for Configuration
+- Created separate functions for different display components:
+  - `load_layout_config()` - Load and parse JSON configuration
+  - `show_mlb_startup_logo()` - Display startup sequence
+  - `create_base_diamond()` - Create the base runner visualization
+  - `setup_game_day_display()` - Put together all display elements
+- Added robust error handling for each component
+- Added memory management with garbage collection
 
-- All display elements now pull their position from the layout configuration
-- Colors are now defined in the layout configuration file
-- Added proper error handling around each display element
+### 5. Debugging Tools
 
-### 5. Added Memory Management
+- Added a `print_layout_grid()` function to visualize the layout positions
+- Included memory usage reporting
+- Better error messages for each component
 
-- Added garbage collection after display updates
-- Added memory usage reporting for debugging
+## Pixel Mapping Optimization
 
-## Technical Details
+The layout has been configured for optimal visibility on a 64x32 LED matrix. Key optimizations include:
 
-### Base Diamond Visualization
-
-The base diamond implementation uses a custom bitmap with multiple colors:
-- Each base is represented as a pixel at the configured position
-- The bases are connected with lines to form a diamond shape
-- Occupied bases are highlighted with the configured "color_on" value
-- Empty bases are displayed with the configured "color_off" value
-
-### Layout Configuration System
-
-The layout configuration uses a JSON file that defines:
-- x, y coordinates for each display element
-- Color values for each element
-- Base positions and colors for the diamond visualization
-
-### Future Integration Points
-
-The code includes placeholder comments for future ESPN API integration. The next steps would be:
-- Implement network connectivity
-- Add ESPN API data fetching
-- Create an off-day layout and configuration
-- Implement automatic mode switching based on game schedule
-
-## Memory Optimization
-
-The implementation includes several memory optimization techniques:
-- Using garbage collection after display operations
-- Error handling to prevent crashes on failed asset loading
-- Using a single main display group with components added dynamically
-- Minimizing string operations
-
-## Testing Notes
-
-The implementation has been tested with static game data. The diamond base visualization works correctly, showing the proper base occupation status.
+1. **Team Logo**: Positioned at (2,2) with size constraints (max 24x24 pixels)
+2. **Team Matchup**: Spread across the top with clear separation between elements:
+   - Home team at (28,4)
+   - "v" text at (38,4)
+   - Away team at (47,4)
+3. **Base Diamond**: Centered in the display area with proper scaling:
+   - Home plate at (39,18)
+   - First base at (44,13)
+   - Second base at (39,8)
+   - Third base at (34,13)
+4. **Count Information**: Positioned at (50,18) to avoid overlap with the diamond
+5. **Score Display**: Clear position at the bottom (28,26)
 
 ## Next Steps
 
-1. Implement ESPN API integration for live game data
-2. Create off-day screen layout and configuration
-3. Add support for different matrix sizes
-4. Implement automatic mode switching based on game schedule
+1. **API Integration**: Implement ESPN API integration for live data
+2. **Off-Day Layout**: Create an alternate layout for when no games are scheduled
+3. **Team Logo Handling**: Add proper logo resizing for different teams
+4. **Multi-Screen Support**: Implement screen rotation for additional information
+5. **Layout Tuning**: Fine-tune pixel positions based on actual display testing
+
+## Technical Notes
+
+- The implementation now aligns with the reference MLB-LED-Scoreboard project
+- Base diamond visualization is properly implemented with lines connecting bases
+- The layout system allows easy adjustment without code changes
+- Memory management has been improved through strategic garbage collection
+- Error handling is in place for all display components
+
+This implementation provides a solid foundation for the MLB Scoreboard project and addresses the key issues identified in the analysis.

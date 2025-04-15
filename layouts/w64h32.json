@@ -1,58 +1,74 @@
 {
-  "logo": {
-    "x": 0,
-    "y": 0,
-    "scale": 1
-  },
-  "team_matchup": {
-    "x": 18,
-    "y": 4,
-    "font": "font.bdf",
-    "color": "0xFFFFFF"
-  },
-  "inning": {
-    "x": 18,
-    "y": 14,
-    "font": "terminalio",
-    "color": "0xFFFF00"
-  },
-  "score": {
-    "x": 18,
-    "y": 26,
-    "font": "terminalio",
-    "color": "0x00FF00"
-  },
-  "bases": {
-    "x": 32,
-    "y": 10,
-    "first": {
-      "x": 38,
-      "y": 16,
-      "color_on": "0xFFFFFF",
-      "color_off": "0x222222"
+    "logo": {
+        "x": 2,
+        "y": 2,
+        "scale": 1,
+        "max_width": 24,
+        "max_height": 24
     },
-    "second": {
-      "x": 32,
-      "y": 10,
-      "color_on": "0xFFFFFF",
-      "color_off": "0x222222"
+    "team_matchup": {
+        "home_team": {
+            "x": 28,
+            "y": 4,
+            "font": "font.bdf",
+            "color": "0xFFFFFF"
+        },
+        "vs_text": {
+            "x": 38,
+            "y": 4,
+            "font": "terminalio",
+            "color": "0xFFFFFF"
+        },
+        "away_team": {
+            "x": 47,
+            "y": 4,
+            "font": "font.bdf",
+            "color": "0xFFFFFF"
+        }
     },
-    "third": {
-      "x": 26,
-      "y": 16,
-      "color_on": "0xFFFFFF",
-      "color_off": "0x222222"
+    "inning": {
+        "x": 30,
+        "y": 14,
+        "font": "terminalio",
+        "color": "0x00FFFF"
     },
-    "home": {
-      "x": 32,
-      "y": 22,
-      "color": "0x444444"
+    "bases": {
+        "x": 35,
+        "y": 8,
+        "first": {
+            "x": 44,
+            "y": 13,
+            "color_on": "0xFFFFFF",
+            "color_off": "0x222222"
+        },
+        "second": {
+            "x": 39,
+            "y": 8,
+            "color_on": "0xFFFFFF",
+            "color_off": "0x222222"
+        },
+        "third": {
+            "x": 34,
+            "y": 13,
+            "color_on": "0xFFFFFF",
+            "color_off": "0x222222"
+        },
+        "home": {
+            "x": 39,
+            "y": 18,
+            "color": "0x444444"
+        }
+    },
+    "score": {
+        "x": 28,
+        "y": 26,
+        "font": "terminalio",
+        "color": "0x00FF00"
+    },
+    "count": {
+        "x": 50,
+        "y": 18,
+        "font": "terminalio",
+        "color": "0xFFFFFF"
     }
-  },
-  "count": {
-    "x": 45,
-    "y": 16,
-    "font": "terminalio",
-    "color": "0x00FFFF"
-  }
 }
