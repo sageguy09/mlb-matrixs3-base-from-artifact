@@ -1,0 +1,58 @@
+{
+  "logo": {
+    "x": 0,
+    "y": 0,
+    "scale": 1
+  },
+  "team_matchup": {
+    "x": 18,
+    "y": 4,
+    "font": "font.bdf",
+    "color": "0xFFFFFF"
+  },
+  "inning": {
+    "x": 18,
+    "y": 14,
+    "font": "terminalio",
+    "color": "0xFFFF00"
+  },
+  "score": {
+    "x": 18,
+    "y": 26,
+    "font": "terminalio",
+    "color": "0x00FF00"
+  },
+  "bases": {
+    "x": 32,
+    "y": 10,
+    "first": {
+      "x": 38,
+      "y": 16,
+      "color_on": "0xFFFFFF",
+      "color_off": "0x222222"
+    },
+    "second": {
+      "x": 32,
+      "y": 10,
+      "color_on": "0xFFFFFF",
+      "color_off": "0x222222"
+    },
+    "third": {
+      "x": 26,
+      "y": 16,
+      "color_on": "0xFFFFFF",
+      "color_off": "0x222222"
+    },
+    "home": {
+      "x": 32,
+      "y": 22,
+      "color": "0x444444"
+    }
+  },
+  "count": {
+    "x": 45,
+    "y": 16,
+    "font": "terminalio",
+    "color": "0x00FFFF"
+  }
+}
