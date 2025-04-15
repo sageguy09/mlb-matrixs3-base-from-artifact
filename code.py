@@ -1,117 +1,119 @@
-# main.py - Bitcoin price display example for Matrix Portal S3
-# Adapted from the Adafruit MatrixPortal example
-
-import time
 import board
-import terminalio
 import displayio
-import gc
+import framebufferio
+import rgbmatrix
+from adafruit_display_text import label
+import terminalio  # Use built-in font as fallback
+import time
+import os
+import ssl
+import socketpool
+import wifi
+from get_team_logos import get_logo_tilegrid, LOGO_READY
 
-# Import modules from our project
-from packages.hardware.matrix import Matrix
-from packages.utils.network import WiFiManager
-from packages.ui.text_display import TextDisplay
+# Release any existing displays
+displayio.release_displays()
 
-# Configuration
-WIFI_SSID = "your_wifi_ssid"
-WIFI_PASSWORD = "your_wifi_password"
-CURRENCY = "USD"
-DATA_SOURCE = "https://api.coindesk.com/v1/bpi/currentprice.json"
-DATA_LOCATION = ["bpi", CURRENCY, "rate_float"]
-REFRESH_INTERVAL = 180  # Refresh data every 180 seconds (3 minutes)
-SCROLL_DELAY = 0.03  # 30ms between scroll steps
+# --- Matrix Setup ---
+BIT_DEPTH = 4  # Adjust for color depth (1-6)
+WIDTH = 64
+HEIGHT = 32
 
-# Initialize Matrix hardware
-matrix = Matrix(width=64, height=32, bit_depth=6)
-display_group = matrix.get_display_group()
+# Initialize the RGB matrix
+matrix = rgbmatrix.RGBMatrix(
+    width=WIDTH,
+    height=HEIGHT,
+    bit_depth=BIT_DEPTH,
+    rgb_pins=[
+        board.MTX_R1,
+        board.MTX_G1,
+        board.MTX_B1,
+        board.MTX_R2,
+        board.MTX_G2,
+        board.MTX_B2,
+    ],
+    addr_pins=[
+        board.MTX_ADDRA,
+        board.MTX_ADDRB,
+        board.MTX_ADDRC,
+        board.MTX_ADDRD,
+    ],
+    clock_pin=board.MTX_CLK,
+    latch_pin=board.MTX_LAT,
+    output_enable_pin=board.MTX_OE,
+)
 
-# Create text display manager
-text = TextDisplay(display_group, width=64, height=32)
+# Create a display context
+display = framebufferio.FramebufferDisplay(matrix)
 
-# Initialize network connection
-network = WiFiManager(status_led=matrix.status_led, debug=True)
+# Create a loading message to display while we wait for logo and WiFi
+loading_group = displayio.Group()
+loading_text = label.Label(terminalio.FONT, text="Loading...", color=0xFFFFFF, x=5, y=16)
+loading_group.append(loading_text)
 
-def format_price(price):
-    """Format the price value based on currency"""
-    if CURRENCY == "USD":
-        return f"${int(price)}"
-    if CURRENCY == "EUR":
-        return f"€{int(price)}"
-    if CURRENCY == "GBP":
-        return f"£{int(price)}"
-    return f"{int(price)}"
+# Show loading screen first
+display.root_group = loading_group
 
-def main():
-    """Main application function"""
-    print("Starting Bitcoin Price Display")
+# Initialize WiFi connection
+print("Connecting to WiFi...")
+loading_text.text = "Connecting WiFi..."
+
+try:
+    # Get WiFi details from settings.toml
+    ssid = os.getenv("CIRCUITPY_WIFI_SSID")
+    password = os.getenv("CIRCUITPY_WIFI_PASSWORD")
     
-    # Connect to WiFi
-    if not network.connect(WIFI_SSID, WIFI_PASSWORD):
-        print("Failed to connect to WiFi. Check credentials.")
-        return
+    print(f"Connecting to {ssid}...")
+    wifi.radio.connect(ssid, password)
     
-    # Add scrolling text display
-    bitcoin_text = text.add_text(
-        text="Connecting...",
-        name="bitcoin_price",
-        color=0xFFFFFF,
-        x=matrix.width,  # Start off-screen to the right
-        y=16,  # Vertical center of 32px display
-        scrolling=True,
-        scroll_delay=SCROLL_DELAY
-    )
+    # Create socket pool for network requests
+    pool = socketpool.SocketPool(wifi.radio)
     
-    # Preload font characters for faster rendering
-    special_chars = b"$0123456789"
-    if CURRENCY == "EUR":
-        special_chars += bytes([0x20AC])  # Euro symbol
-    elif CURRENCY == "GBP":
-        special_chars += bytes([0x00A3])  # Pound symbol
-    
-    text.preload_font("bitcoin_price", special_chars)
-    
-    # Main loop
-    last_check = None
-    
-    while True:
-        # Check if it's time to fetch new price data
-        if last_check is None or time.monotonic() > last_check + REFRESH_INTERVAL:
-            try:
-                # Fetch current Bitcoin price
-                current_price = network.fetch_json(DATA_SOURCE, json_path=DATA_LOCATION)
-                
-                if current_price is not None:
-                    # Format and update the display text
-                    price_text = format_price(current_price)
-                    bitcoin_message = f"Bitcoin price: {price_text} - powered by CoinDesk"
-                    text.update_text("bitcoin_price", bitcoin_message)
-                    print(f"Updated price: {price_text}")
-                    
-                    # Update last check time
-                    last_check = time.monotonic()
-            except Exception as e:
-                print(f"Error updating price: {e}")
-                # Keep going with previous data
-        
-        # Update scrolling text
-        text.scroll_all()
-        
-        # Short delay between updates
-        time.sleep(0.01)
-        
-        # Run garbage collection occasionally to prevent memory issues
-        if time.monotonic() % 10 < 0.1:  # Roughly every 10 seconds
-            gc.collect()
+    print("WiFi connected!")
+    print(f"IP address: {wifi.radio.ipv4_address}")
+    loading_text.text = "WiFi connected!"
+    time.sleep(1)  # Show success message briefly
+except Exception as e:
+    print(f"Failed to connect to WiFi: {e}")
+    loading_text.text = "WiFi error!"
+    time.sleep(2)  # Show error longer
 
-if __name__ == "__main__":
-    try:
-        # Run the main application
-        main()
-    except Exception as e:
-        # Log any unhandled exceptions
-        print(f"Unhandled exception: {e}")
-        matrix.status_flash(count=5)  # Flash status LED to indicate error
-        
-        # In production code, you might want to reset the device
-        # import microcontroller
-        # microcontroller.reset()
+# Create the main display group
+main_group = displayio.Group()
+
+# Define teams for current game
+home_team = "ATL"  # We only support ATL in this version
+opponent_team = "NYM"  # Just for display, not loading a logo
+
+# Load Braves logo
+loading_text.text = "Loading logo..."
+braves_logo = get_logo_tilegrid(home_team)
+
+# Position logo
+braves_logo.x = 2
+braves_logo.y = 2
+main_group.append(braves_logo)
+
+# Try to load the custom font, fall back to built-in if it fails
+try:
+    from adafruit_bitmap_font import bitmap_font
+    font = bitmap_font.load_font("/fonts/font.bdf")
+    print("Custom font loaded successfully")
+except Exception as e:
+    print(f"Error loading font: {e}")
+    font = terminalio.FONT  # Use built-in font as fallback
+
+# Create labels
+score_label = label.Label(font, text=f"{home_team} 5 - {opponent_team} 3", color=0x00FF00, x=2, y=20)
+next_game_label = label.Label(font, text=f"Next: 7/15 @ {opponent_team}", color=0xFF0000, x=2, y=28)
+
+# Add labels to the group
+main_group.append(score_label)
+main_group.append(next_game_label)
+
+# Show the main display group once everything is ready
+display.root_group = main_group
+
+# Keep the display on
+while True:
+    time.sleep(1)

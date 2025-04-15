@@ -12,6 +12,27 @@ import microcontroller
 DEBUG_MODE = True  # Set to False for production
 ENABLE_USB_DRIVE = True  # Set to False to disable USB drive access
 
+# Disable auto-reload to prevent unintended code execution during file operations
+supervisor.runtime.autoreload = False
+
+# List of essential directories
+REQUIRED_DIRS = ["lib", "sd", "fonts", "images", "sounds"]
+
+# Create each directory if it doesn't exist
+for directory in REQUIRED_DIRS:
+    try:
+        os.makedirs(directory, exist_ok=True)
+    except OSError:
+        pass  # Directory already exists or cannot be created
+
+# Ensure the settings.toml file exists with default content
+if not os.path.exists("settings.toml"):
+    try:
+        with open("settings.toml", "w") as f:
+            f.write("CIRCUITPY_USB_WRITE_PROTECT=false\n")
+    except OSError:
+        pass  # File cannot be created
+
 # Setup status LED to indicate boot process
 status_led = digitalio.DigitalInOut(board.NEOPIXEL)
 status_led.direction = digitalio.Direction.OUTPUT

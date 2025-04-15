@@ -4,8 +4,8 @@
 
 # ===== WIFI SETTINGS =====
 # Fill in your WiFi credentials
-WIFI_SSID = "Your_WiFi_Name"
-WIFI_PASSWORD = "Your_WiFi_Password"
+CIRCUITPY_WIFI_SSID = "Your_WiFi_Name"
+CIRCUITPY_WIFI_PASSWORD = "Your_WiFi_Password"
 TIMEZONE = "America/New_York"  # Standard timezone format
 
 # ===== DISPLAY SETTINGS =====
