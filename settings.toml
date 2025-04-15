@@ -11,7 +11,7 @@ TIMEZONE = "America/New_York"  # Standard timezone format
 DISPLAY_WIDTH = 64      # Matrix width in pixels
 DISPLAY_HEIGHT = 32     # Matrix height in pixels
 DISPLAY_BIT_DEPTH = 4   # Color bit depth
-BRIGHTNESS = 0.5        # Display brightness (0.0-1.0)
+BRIGHTNESS = 0.6        # Display brightness (0.0-1.0)
 
 # ===== MLB SETTINGS =====
 FAVORITE_TEAM = "ATL"   # Atlanta Braves
@@ -22,4 +22,4 @@ DATA_REFRESH_INTERVAL = 60  # Seconds between API refreshes
 # ===== DEBUG SETTINGS =====
 DEBUG = false           # Enable debug logging
 SHOW_COORDINATES = false  # Show pixel coordinates
-REPORT_MEMORY = false    # Report memory usage
+REPORT_MEMORY = true     # Report memory usage

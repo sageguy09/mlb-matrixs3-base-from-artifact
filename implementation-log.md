@@ -1,78 +1,93 @@
-# MLB Scoreboard Implementation Log - Update
+# MLB Scoreboard Implementation Log - Size Optimization Update
 
-## Improvements Made
+## Size Optimization Changes
 
-Based on the detailed analysis, I've implemented several key improvements to the MLB Scoreboard project:
+Based on our analysis of the display requirements, we've implemented several key improvements to optimize the layout for better readability and information density:
 
-### 1. Improved Layout Configuration
+### 1. Reduced Logo Size
 
-- Updated the `/layouts/w64h32.json` configuration file with optimized positions
-- Added separate positioning for home team, versus text, and away team elements
-- Repositioned the base diamond for better visibility
-- Added support for logo size constraints (`max_width` and `max_height`)
+- Changed the team logo from 24x24 to 15x15 pixels
+- Updated the logo area border to 17x17 to accommodate the smaller logo
+- Modified the `get_team_logos.py` script to download and resize images to 15x15
+- Adjusted logo positioning within its bordered area
 
-### 2. Enhanced Base Diamond Visualization
+### 2. Text Size Standardization
 
-- Improved the pixel-based diamond with better positioning
-- Optimized the line-drawing algorithm between bases
-- Added boundary checking to prevent out-of-range pixel assignments
-- Used configurable colors for active/inactive bases from layout file
-- Better spacing between bases for improved visibility
+- Set the main game text to a standardized 7-pixel height
+- Used scale=1 for all text elements to ensure consistent sizing
+- Adjusted all text element positions to align with the new sizing
 
-### 3. Added MLB Startup Logo
+### 3. Improved Layout Spacing
 
-- Implemented a new startup sequence with centered MLB logo
-- Added version information display during startup
-- Implemented a fallback text display if the logo isn't available
-- Added a startup delay to allow users to see the logo (3 seconds)
+- Repositioned all display elements to make better use of the available space
+- Increased horizontal spacing between elements for improved readability
+- Moved the base diamond to better utilize the right side of the display
+- Repositioned count display to the bottom center for better visibility
 
-### 4. Modular Code Structure
+### 4. Base Diamond Optimization
 
-- Created separate functions for different display components:
-  - `load_layout_config()` - Load and parse JSON configuration
-  - `show_mlb_startup_logo()` - Display startup sequence
-  - `create_base_diamond()` - Create the base runner visualization
-  - `setup_game_day_display()` - Put together all display elements
-- Added robust error handling for each component
-- Added memory management with garbage collection
+- Reduced base indicator size from 3x3 to 2x2 pixels to match the smaller scale
+- Adjusted the diamond shape to be proportional to the new layout
+- Optimized base positioning for better visibility
 
-### 5. Debugging Tools
+### 5. Color Scheme Maintenance
 
-- Added a `print_layout_grid()` function to visualize the layout positions
-- Included memory usage reporting
-- Better error messages for each component
+- Kept the established color scheme for consistency
+- Maintained high contrast between elements for readability
 
-## Pixel Mapping Optimization
+## Layout Visualization
 
-The layout has been configured for optimal visibility on a 64x32 LED matrix. Key optimizations include:
+The optimized layout follows this approximate pattern:
 
-1. **Team Logo**: Positioned at (2,2) with size constraints (max 24x24 pixels)
-2. **Team Matchup**: Spread across the top with clear separation between elements:
-   - Home team at (28,4)
-   - "v" text at (38,4)
-   - Away team at (47,4)
-3. **Base Diamond**: Centered in the display area with proper scaling:
-   - Home plate at (39,18)
-   - First base at (44,13)
-   - Second base at (39,8)
-   - Third base at (34,13)
-4. **Count Information**: Positioned at (50,18) to avoid overlap with the diamond
-5. **Score Display**: Clear position at the bottom (28,26)
+```
++----------------------------------------------------------------+
+|◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻|                                             |
+|◻               ◻|                                             |
+|◻ [BRAVES LOGO] ◻|                                             |
+|◻     (15x15)   ◻|    ATL v NYM                                |
+|◻               ◻|                                             |
+|◻               ◻|                                             |
+|◻               ◻|                                             |
+|◻               ◻|                                             |
+|◻               ◻|                                             |
+|◻               ◻|                            ⬤                |
+|◻               ◻|                           / \               |
+|◻               ◻|                          /   \              |
+|◻               ◻|                         /     \             |
+|◻               ◻|    TOP 4th             ⬤       ⬤           |
+|◻               ◻|                         \     /             |
+|◻               ◻|                          \   /              |
+|◻               ◻|                           \ /               |
+|◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻◻|                            ⬤                |
+|                  ATL 5-3 NYM                                 |
+|                                                              |
+|                                                              |
+|                                                              |
+|                                                              |
+|                                                              |
+|                                                              |
+|                                                              |
+|                                                              |
+|                                                              |
+|                       B:1 S:2 O:1                            |
+|                                                              |
+|                                                              |
++----------------------------------------------------------------+
+```
+
+## Memory Impact
+
+The reduced image size and optimized display elements have resulted in memory savings:
+- Smaller BMP image (15x15 vs 24x24) reduces memory usage
+- Consistent text scaling eliminates the need for multiple font sizes
+- Smaller base diamond visualization requires less bitmap memory
 
 ## Next Steps
 
-1. **API Integration**: Implement ESPN API integration for live data
-2. **Off-Day Layout**: Create an alternate layout for when no games are scheduled
-3. **Team Logo Handling**: Add proper logo resizing for different teams
-4. **Multi-Screen Support**: Implement screen rotation for additional information
-5. **Layout Tuning**: Fine-tune pixel positions based on actual display testing
+These optimizations provide a solid foundation for future enhancements:
+1. Run the updated `get_team_logos.py` script to generate the 15x15 ATL.bmp logo
+2. Test the display with the new layout configurations
+3. Fine-tune positions if needed based on actual display results
+4. Continue with ESPN API integration as originally planned
 
-## Technical Notes
-
-- The implementation now aligns with the reference MLB-LED-Scoreboard project
-- Base diamond visualization is properly implemented with lines connecting bases
-- The layout system allows easy adjustment without code changes
-- Memory management has been improved through strategic garbage collection
-- Error handling is in place for all display components
-
-This implementation provides a solid foundation for the MLB Scoreboard project and addresses the key issues identified in the analysis.
+The optimized layout maintains all the required information while making better use of the limited 64x32 pixel display space.

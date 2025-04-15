@@ -19,8 +19,8 @@ import sys
 
 # Constants for image processing
 GAMMA = 2.6
-MAX_WIDTH = 24
-MAX_HEIGHT = 24
+MAX_WIDTH = 15  # Reduced from 24 to 15
+MAX_HEIGHT = 15  # Reduced from 24 to 15
 
 PASSTHROUGH = ((0, 0, 0),
                (255, 0, 0),
